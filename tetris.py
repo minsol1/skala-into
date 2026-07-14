@@ -26,8 +26,11 @@ CELL_SIZE = 30
 BOARD_WIDTH = COLS * CELL_SIZE
 BOARD_HEIGHT = ROWS * CELL_SIZE
 SIDE_PANEL_WIDTH = 160
-SCREEN_WIDTH = BOARD_WIDTH + SIDE_PANEL_WIDTH
+BOARD_OFFSET_X = SIDE_PANEL_WIDTH
+SCREEN_WIDTH = SIDE_PANEL_WIDTH + BOARD_WIDTH
 SCREEN_HEIGHT = BOARD_HEIGHT
+
+PREVIEW_CELL_SIZE = 20
 
 FALL_INTERVAL_MS = 500
 
@@ -121,12 +124,33 @@ def hard_drop(board, piece):
         pass
 
 
-def draw_board(screen, board, piece, font, score):
+def draw_next_piece_preview(screen, font, next_piece):
+    label = font.render("NEXT", True, WHITE)
+    screen.blit(label, (15, 15))
+
+    origin_x, origin_y = 15, 50
+    for row, col in TETROMINOES[next_piece.shape]["cells"]:
+        rect = (
+            origin_x + col * PREVIEW_CELL_SIZE,
+            origin_y + row * PREVIEW_CELL_SIZE,
+            PREVIEW_CELL_SIZE,
+            PREVIEW_CELL_SIZE,
+        )
+        pygame.draw.rect(screen, next_piece.color, rect)
+        pygame.draw.rect(screen, GRAY, rect, 1)
+
+
+def draw_board(screen, board, piece, next_piece, font, score):
     screen.fill(BLACK)
+
+    pygame.draw.rect(screen, GRAY, (0, 0, SIDE_PANEL_WIDTH, SCREEN_HEIGHT))
+    draw_next_piece_preview(screen, font, next_piece)
+    score_text = font.render(f"Score: {score}", True, WHITE)
+    screen.blit(score_text, (15, 160))
 
     for row in range(ROWS):
         for col in range(COLS):
-            rect = (col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+            rect = (BOARD_OFFSET_X + col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
             color = board.grid[row][col]
             if color:
                 pygame.draw.rect(screen, color, rect)
@@ -134,13 +158,9 @@ def draw_board(screen, board, piece, font, score):
 
     for row, col in piece.occupied_cells():
         if row >= 0:
-            rect = (col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+            rect = (BOARD_OFFSET_X + col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
             pygame.draw.rect(screen, piece.color, rect)
             pygame.draw.rect(screen, GRAY, rect, 1)
-
-    pygame.draw.rect(screen, GRAY, (BOARD_WIDTH, 0, SIDE_PANEL_WIDTH, SCREEN_HEIGHT))
-    score_text = font.render(f"Score: {score}", True, WHITE)
-    screen.blit(score_text, (BOARD_WIDTH + 15, 20))
 
     pygame.display.flip()
 
@@ -163,6 +183,7 @@ def main():
 
     board = Board()
     piece = spawn_piece()
+    next_piece = spawn_piece()
     score = 0
     game_over = False
 
@@ -182,7 +203,8 @@ def main():
                 if not try_move(board, piece, 1, 0):
                     board.lock_piece(piece)
                     score += board.clear_full_lines() * 100
-                    piece = spawn_piece()
+                    piece = next_piece
+                    next_piece = spawn_piece()
                     if not board.is_valid_position(piece.occupied_cells()):
                         game_over = True
 
@@ -199,14 +221,15 @@ def main():
                     hard_drop(board, piece)
                     board.lock_piece(piece)
                     score += board.clear_full_lines() * 100
-                    piece = spawn_piece()
+                    piece = next_piece
+                    next_piece = spawn_piece()
                     if not board.is_valid_position(piece.occupied_cells()):
                         game_over = True
 
         if game_over:
             draw_game_over(screen, font, score)
         else:
-            draw_board(screen, board, piece, font, score)
+            draw_board(screen, board, piece, next_piece, font, score)
 
         clock.tick(60)
 
